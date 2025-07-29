@@ -1,0 +1,16 @@
+﻿@model CV_generator.Models.Education
+
+<div class="mb-4 p-4 border border-gray-200 rounded-md bg-gray-50 education-item">
+    @{
+        var eduIndex = (int)ViewData["index"];
+    }
+    <label class="block text-gray-700 text-sm font-bold mb-2">Degree:</label>
+    @Html.TextBoxFor(m => m.Degree, new { @name = $"Education[{eduIndex}].Degree", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", onkeyup = "updatePreview()" })
+    <label class="block text-gray-700 text-sm font-bold mb-2">University:</label>
+    @Html.TextBoxFor(m => m.University, new { @name = $"Education[{eduIndex}].University", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", onkeyup = "updatePreview()" })
+    <label class="block text-gray-700 text-sm font-bold mb-2">Year:</label>
+    @Html.TextBoxFor(m => m.Year, new { @name = $"Education[{eduIndex}].Year", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", onkeyup = "updatePreview()" })
+    <label class="block text-gray-700 text-sm font-bold mb-2">Details:</label>
+    @Html.TextAreaFor(m => m.Details, new { @name = $"Education[{eduIndex}].Details", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 h-20", onkeyup = "updatePreview()" })
+    <button type="button" class="remove-item-btn ml-2 px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200" data-section="education">Remove Education</button>
+</div>

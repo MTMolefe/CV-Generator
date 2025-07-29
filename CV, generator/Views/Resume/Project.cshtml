@@ -1,0 +1,14 @@
+﻿@model CV_generator.Models.Project
+
+<div class="mb-4 p-4 border border-gray-200 rounded-md bg-gray-50 project-item">
+    @{
+        var projIndex = (int)ViewData["index"];
+    }
+    <label class="block text-gray-700 text-sm font-bold mb-2">Project Name:</label>
+    @Html.TextBoxFor(m => m.Name, new { @name = $"Projects[{projIndex}].Name", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", onkeyup = "updatePreview()" })
+    <label class="block text-gray-700 text-sm font-bold mb-2">Description:</label>
+    @Html.TextAreaFor(m => m.Description, new { @name = $"Projects[{projIndex}].Description", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 h-20", onkeyup = "updatePreview()" })
+    <label class="block text-gray-700 text-sm font-bold mb-2">Link:</label>
+    @Html.TextBoxFor(m => m.Link, new { @name = $"Projects[{projIndex}].Link", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", type = "url", onkeyup = "updatePreview()" })
+    <button type="button" class="remove-item-btn ml-2 px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200" data-section="projects">Remove Project</button>
+</div>

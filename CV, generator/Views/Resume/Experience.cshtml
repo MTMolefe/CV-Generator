@@ -1,0 +1,25 @@
+﻿@model CV_generator.Models.Experience
+
+<div class="mb-4 p-4 border border-gray-200 rounded-md bg-gray-50 experience-item">
+    @{
+        var expIndex = (int)ViewData["index"];
+    }
+    <label class="block text-gray-700 text-sm font-bold mb-2">Title:</label>
+    @Html.TextBoxFor(m => m.Title, new { @name = $"Experience[{expIndex}].Title", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", onkeyup = "updatePreview()" })
+    <label class="block text-gray-700 text-sm font-bold mb-2">Company:</label>
+    @Html.TextBoxFor(m => m.Company, new { @name = $"Experience[{expIndex}].Company", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", onkeyup = "updatePreview()" })
+    <label class="block text-gray-700 text-sm font-bold mb-2">Years:</label>
+    @Html.TextBoxFor(m => m.Years, new { @name = $"Experience[{expIndex}].Years", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", onkeyup = "updatePreview()" })
+    <label class="block text-gray-700 text-sm font-bold mb-2">Description:</label>
+    <div class="description-lines-container">
+        @for (int i = 0; i < Model.Description.Count; i++)
+        {
+            <div class="flex items-center mb-2">
+                @Html.TextAreaFor(m => m.Description[i], new { @name = $"Experience[{expIndex}].Description[{i}]", @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 h-16 flex-grow", onkeyup = "updatePreview()" })
+                <button type="button" class="remove-desc-line-btn ml-2 px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200">-</button>
+            </div>
+        }
+    </div>
+    <button type="button" class="add-desc-line-btn px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors duration-200 text-sm" data-exp-index="@expIndex">Add Line</button>
+    <button type="button" class="remove-item-btn ml-2 px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200 mt-2" data-section="experience">Remove Experience</button>
+</div>

@@ -1,0 +1,677 @@
+﻿@model CV_generator.Models.ResumeData
+
+@{
+    ViewData["Title"] = "Resume Builder";
+    Layout = null; // No default layout for this example, or specify your _Layout.cshtml
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Resume Builder</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome CDN -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet" />
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- jsPDF and html2canvas CDN for client-side PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        /* Custom Scrollbar CSS (similar to React app) */
+        .custom-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .custom-scrollbar {
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .max-w-a4 {
+            max-width: 210mm; /* A4 width */
+            min-height: 297mm; /* A4 height */
+            box-sizing: border-box;
+        }
+        /* Styles for print media */
+        @@media print {
+            body {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            .max-w-a4 {
+                width: 210mm;
+                height: 297mm;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                overflow: hidden;
+            }
+            /* Hide controls when printing */
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100 flex flex-col">
+    <header class="no-print bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4 shadow-lg flex justify-between items-center">
+        <h1 class="text-3xl font-bold">Resume Builder</h1>
+        <button id="exportPdfBtn" class="px-6 py-2 bg-green-500 text-white rounded-full shadow-lg hover:bg-green-600 transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-400">
+            <i class="fas fa-file-pdf mr-2"></i>Export to PDF
+        </button>
+    </header>
+
+    <main class="flex flex-col lg:flex-row flex-grow p-4 gap-4">
+        <!-- Left Panel: Form and Template Selector -->
+        <div class="no-print w-full lg:w-1/2 flex flex-col gap-4">
+            <div class="p-4 bg-white rounded-lg shadow-md mb-4">
+                <h2 class="text-xl font-semibold mb-3 text-gray-800">Select Template</h2>
+                <div class="flex flex-wrap gap-3">
+                    <button class="template-btn px-5 py-2 rounded-md transition-colors duration-200 bg-purple-600 text-white shadow-lg" data-template="modern">Modern</button>
+                    <button class="template-btn px-5 py-2 rounded-md transition-colors duration-200 bg-gray-200 text-gray-800 hover:bg-gray-300" data-template="classic">Classic</button>
+                    <button class="template-btn px-5 py-2 rounded-md transition-colors duration-200 bg-gray-200 text-gray-800 hover:bg-gray-300" data-template="minimal">Minimal</button>
+                </div>
+            </div>
+
+            <div class="w-full p-4 bg-gray-100 rounded-lg shadow-inner overflow-y-auto max-h-[calc(100vh-64px)] custom-scrollbar">
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button class="section-nav-btn px-4 py-2 rounded-md transition-colors duration-200 bg-indigo-600 text-white shadow-lg" data-section="personal">Personal</button>
+                    <button class="section-nav-btn px-4 py-2 rounded-md transition-colors duration-200 bg-gray-200 text-gray-800 hover:bg-gray-300" data-section="summary">Summary</button>
+                    <button class="section-nav-btn px-4 py-2 rounded-md transition-colors duration-200 bg-gray-200 text-gray-800 hover:bg-gray-300" data-section="education">Education</button>
+                    <button class="section-nav-btn px-4 py-2 rounded-md transition-colors duration-200 bg-gray-200 text-gray-800 hover:bg-gray-300" data-section="experience">Experience</button>
+                    <button class="section-nav-btn px-4 py-2 rounded-md transition-colors duration-200 bg-gray-200 text-gray-800 hover:bg-gray-300" data-section="skills">Skills</button>
+                    <button class="section-nav-btn px-4 py-2 rounded-md transition-colors duration-200 bg-gray-200 text-gray-800 hover:bg-gray-300" data-section="projects">Projects</button>
+                </div>
+
+                @using (Html.BeginForm("Create", "Resume", FormMethod.Post, new { id = "resumeForm" }))
+                {
+                    @Html.AntiForgeryToken()
+
+                    <div id="personal-section" class="resume-form-section p-6 bg-white rounded-lg shadow-md mb-6">
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Personal Information</h2>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Name:</label>
+                        @Html.TextBoxFor(m => m.Personal.Name, new { @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", onkeyup = "updatePreview()" })
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Title:</label>
+                        @Html.TextBoxFor(m => m.Personal.Title, new { @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", onkeyup = "updatePreview()" })
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Email:</label>
+                        @Html.TextBoxFor(m => m.Personal.Email, new { @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", type = "email", onkeyup = "updatePreview()" })
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Phone:</label>
+                        @Html.TextBoxFor(m => m.Personal.Phone, new { @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", type = "tel", onkeyup = "updatePreview()" })
+                        <label class="block text-gray-700 text-sm font-bold mb-2">LinkedIn:</label>
+                        @Html.TextBoxFor(m => m.Personal.LinkedIn, new { @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", type = "url", onkeyup = "updatePreview()" })
+                        <label class="block text-gray-700 text-sm font-bold mb-2">GitHub:</label>
+                        @Html.TextBoxFor(m => m.Personal.GitHub, new { @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", type = "url", onkeyup = "updatePreview()" })
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Address:</label>
+                        @Html.TextBoxFor(m => m.Personal.Address, new { @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2", onkeyup = "updatePreview()" })
+                    </div>
+
+                    <div id="summary-section" class="resume-form-section p-6 bg-white rounded-lg shadow-md mb-6 hidden">
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Summary</h2>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Summary:</label>
+                        @Html.TextAreaFor(m => m.Summary, new { @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 h-32", onkeyup = "updatePreview()" })
+                    </div>
+
+                    <div id="education-section" class="resume-form-section p-6 bg-white rounded-lg shadow-md mb-6 hidden">
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Education</h2>
+                        <div id="education-items-container">
+                            @for (int i = 0; i < Model.Education.Count; i++)
+                            {
+                                @Html.Partial("Education", Model.Education[i], new ViewDataDictionary(ViewData) { { "index", i } })
+                            }
+                        </div>
+                        <button type="button" id="addEducationBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200">Add Education</button>
+                    </div>
+
+                    <div id="experience-section" class="resume-form-section p-6 bg-white rounded-lg shadow-md mb-6 hidden">
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Experience</h2>
+                        <div id="experience-items-container">
+                            @for (int i = 0; i < Model.Experience.Count; i++)
+                            {
+                                @Html.Partial("Experience", Model.Experience[i], new ViewDataDictionary(ViewData) { { "index", i } })
+                            }
+                        </div>
+                        <button type="button" id="addExperienceBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200">Add Experience</button>
+                    </div>
+
+                    <div id="skills-section" class="resume-form-section p-6 bg-white rounded-lg shadow-md mb-6 hidden">
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Skills</h2>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Skills (comma-separated):</label>
+                        @Html.TextAreaFor(m => m.Skills, new { @class = "w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 h-24", onkeyup = "updatePreview()" })
+                    </div>
+
+                    <div id="projects-section" class="resume-form-section p-6 bg-white rounded-lg shadow-md mb-6 hidden">
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-800">Projects</h2>
+                        <div id="projects-items-container">
+                            @for (int i = 0; i < Model.Projects.Count; i++)
+                            {
+                                @Html.Partial("Project", Model.Projects[i], new ViewDataDictionary(ViewData) { { "index", i } })
+                            }
+                        </div>
+                        <button type="button" id="addProjectBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200">Add Project</button>
+                    </div>
+
+                    <button type="submit" class="no-print px-6 py-3 bg-indigo-700 text-white rounded-md shadow-lg hover:bg-indigo-800 transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-600 w-full">Save Resume</button>
+                }
+            </div>
+        </div>
+
+        <!-- Right Panel: Live Preview -->
+        <div class="w-full lg:w-1/2 bg-gray-200 rounded-lg shadow-inner flex justify-center items-start p-4">
+            <div id="resume-preview" class="w-full bg-white shadow-lg rounded-lg overflow-hidden p-8 max-w-a4 mx-auto my-4 text-gray-800">
+                <!-- Preview content will be rendered here by JavaScript -->
+            </div>
+        </div>
+    </main>
+
+    <footer class="no-print bg-gray-800 text-white text-center p-3 text-sm">
+        &copy; @DateTime.Now.Year Resume Builder. All rights reserved.
+    </footer>
+
+    <script>
+        // JavaScript for dynamic form sections and preview update
+        document.addEventListener('DOMContentLoaded', function () {
+            const resumeForm = document.getElementById('resumeForm');
+            const resumePreview = document.getElementById('resume-preview');
+            const exportPdfBtn = document.getElementById('exportPdfBtn');
+            const sectionNavBtns = document.querySelectorAll('.section-nav-btn');
+            const resumeFormSections = document.querySelectorAll('.resume-form-section');
+            const templateBtns = document.querySelectorAll('.template-btn');
+
+            let currentTemplate = 'modern'; // Default template
+
+            // Function to update the live preview
+            window.updatePreview = function () {
+                const formData = new FormData(resumeForm);
+                const data = {};
+
+                // Parse form data into a JavaScript object matching ResumeData structure
+                for (let [key, value] of formData.entries()) {
+                    // Handle nested properties (e.g., Personal.Name)
+                    if (key.includes('.')) {
+                        const parts = key.split('.');
+                        let current = data;
+                        for (let i = 0; i < parts.length - 1; i++) {
+                            const part = parts[i];
+                            const match = part.match(/\[(\d+)\]$/); // Check for array index
+                            if (match) {
+                                const arrName = part.substring(0, match.index);
+                                const arrIndex = parseInt(match[1]);
+                                if (!current[arrName]) current[arrName] = [];
+                                if (!current[arrName][arrIndex]) current[arrName][arrIndex] = {};
+                                current = current[arrName][arrIndex];
+                            } else {
+                                if (!current[part]) current[part] = {};
+                                current = current[part];
+                            }
+                        }
+                        const finalPart = parts[parts.length - 1];
+                        const match = finalPart.match(/\[(\d+)\]$/); // Check for array index on final part
+                        if (match) {
+                             const arrName = finalPart.substring(0, match.index);
+                             const arrIndex = parseInt(match[1]);
+                             if (!current[arrName]) current[arrName] = [];
+                             current[arrName][arrIndex] = value; // Direct assignment for array items (like description lines)
+                        } else {
+                            current[finalPart] = value;
+                        }
+                    } else if (key.includes('[') && key.includes(']')) {
+                        // Handle array items like Education[0].Degree
+                        const match = key.match(/(\w+)\[(\d+)\]\.(\w+)/);
+                        if (match) {
+                            const section = match[1];
+                            const index = parseInt(match[2]);
+                            const field = match[3];
+                            if (!data[section]) data[section] = [];
+                            if (!data[section][index]) {
+                                // Initialize object based on section type
+                                if (section === 'Education') data[section][index] = { Degree: '', University: '', Year: '', Details: '' };
+                                else if (section === 'Experience') data[section][index] = { Title: '', Company: '', Years: '', Description: [] };
+                                else if (section === 'Projects') data[section][index] = { Name: '', Description: '', Link: '' };
+                            }
+                            data[section][index][field] = value;
+                        } else {
+                            // Handle Experience[0].Description[0]
+                            const descMatch = key.match(/(\w+)\[(\d+)\]\.(\w+)\[(\d+)\]/);
+                            if (descMatch) {
+                                const section = descMatch[1];
+                                const expIndex = parseInt(descMatch[2]);
+                                const descField = descMatch[3]; // Should be 'Description'
+                                const descLineIndex = parseInt(descMatch[4]);
+                                if (!data[section]) data[section] = [];
+                                if (!data[section][expIndex]) data[section][expIndex] = { Title: '', Company: '', Years: '', Description: [] };
+                                if (!data[section][expIndex][descField]) data[section][expIndex][descField] = [];
+                                data[section][expIndex][descField][descLineIndex] = value;
+                            }
+                        }
+                    } else if (key === 'Skills') {
+                        data[key] = value.split(',').map(s => s.trim()).filter(s => s !== '');
+                    } else {
+                        data[key] = value;
+                    }
+                }
+
+                // Construct the HTML for the preview based on the data and current template
+                let previewHtml = '';
+                const styles = getTemplateStyles(currentTemplate);
+
+                // Personal Info
+                previewHtml += `<header class="${styles.header}">
+                    <h1 class="${styles.name}">${data.Personal?.Name || ''}</h1>
+                    <p class="${styles.title}">${data.Personal?.Title || ''}</p>
+                    <div class="${styles.contactInfo}">
+                        ${data.Personal?.Email ? `<span class="${styles.contactItem}"><i class="fas fa-envelope mr-1"></i>${data.Personal.Email}</span>` : ''}
+                        ${data.Personal?.Phone ? `<span class="${styles.contactItem}"><i class="fas fa-phone mr-1"></i>${data.Personal.Phone}</span>` : ''}
+                        ${data.Personal?.LinkedIn ? `<a href="https://${data.Personal.LinkedIn}" target="_blank" rel="noopener noreferrer" class="${styles.contactItem} hover:underline"><i class="fab fa-linkedin mr-1"></i>LinkedIn</a>` : ''}
+                        ${data.Personal?.GitHub ? `<a href="https://${data.Personal.GitHub}" target="_blank" rel="noopener noreferrer" class="${styles.contactItem} hover:underline"><i class="fab fa-github mr-1"></i>GitHub</a>` : ''}
+                        ${data.Personal?.Address ? `<span class="${styles.contactItem}"><i class="fas fa-map-marker-alt mr-1"></i>${data.Personal.Address}</span>` : ''}
+                    </div>
+                </header>`;
+
+                // Summary
+                if (data.Summary) {
+                    previewHtml += `<section class="${styles.section}">
+                        <h2 class="${styles.sectionTitle}">Summary</h2>
+                        <p class="text-sm leading-relaxed">${data.Summary}</p>
+                    </section>`;
+                }
+
+                // Education
+                if (data.Education && data.Education.length > 0) {
+                    previewHtml += `<section class="${styles.section}">
+                        <h2 class="${styles.sectionTitle}">Education</h2>`;
+                    data.Education.forEach(edu => {
+                        if (edu.Degree || edu.University || edu.Year || edu.Details) {
+                            previewHtml += `<div class="mb-2">
+                                <h3 class="${styles.subheading}">${edu.Degree || ''}</h3>
+                                <p class="${styles.subheading2}">${edu.University || ''}${edu.University && edu.Year ? ', ' : ''}${edu.Year || ''}</p>
+                                ${edu.Details ? `<p class="text-sm text-gray-700">${edu.Details}</p>` : ''}
+                            </div>`;
+                        }
+                    });
+                    previewHtml += `</section>`;
+                }
+
+                // Experience
+                if (data.Experience && data.Experience.length > 0) {
+                    previewHtml += `<section class="${styles.section}">
+                        <h2 class="${styles.sectionTitle}">Experience</h2>`;
+                    data.Experience.forEach(exp => {
+                        if (exp.Title || exp.Company || exp.Years || (exp.Description && exp.Description.length > 0)) {
+                            previewHtml += `<div class="mb-4">
+                                <h3 class="${styles.subheading}">${exp.Title || ''}</h3>
+                                <p class="${styles.subheading2}">${exp.Company || ''}${exp.Company && exp.Years ? ', ' : ''}${exp.Years || ''}</p>
+                                <ul class="${styles.descriptionList}">`;
+                            if (exp.Description) {
+                                exp.Description.forEach(desc => {
+                                    if (desc) {
+                                        previewHtml += `<li class="${styles.descriptionItem} text-sm">${desc}</li>`;
+                                    }
+                                });
+                            }
+                            previewHtml += `</ul></div>`;
+                        }
+                    });
+                    previewHtml += `</section>`;
+                }
+
+                // Skills
+                if (data.Skills && data.Skills.length > 0) {
+                    previewHtml += `<section class="${styles.section}">
+                        <h2 class="${styles.sectionTitle}">Skills</h2>
+                        <div class="flex flex-wrap gap-2">`;
+                    data.Skills.forEach(skill => {
+                        if (skill) {
+                            previewHtml += `<span class="${styles.skillTag}">${skill}</span>`;
+                        }
+                    });
+                    previewHtml += `</div></section>`;
+                }
+
+                // Projects
+                if (data.Projects && data.Projects.length > 0) {
+                    previewHtml += `<section class="${styles.section}">
+                        <h2 class="${styles.sectionTitle}">Projects</h2>`;
+                    data.Projects.forEach(proj => {
+                        if (proj.Name || proj.Description || proj.Link) {
+                            previewHtml += `<div class="mb-3">
+                                <h3 class="${styles.subheading}">${proj.Name || ''}</h3>
+                                ${proj.Description ? `<p class="text-sm text-gray-700 mb-1">${proj.Description}</p>` : ''}
+                                ${proj.Link ? `<a href="https://${proj.Link}" target="_blank" rel="noopener noreferrer" class="text-blue-600 text-sm hover:underline">${proj.Link}</a>` : ''}
+                            </div>`;
+                        }
+                    });
+                    previewHtml += `</section>`;
+                }
+
+                resumePreview.innerHTML = `<div class="${styles.container}">${previewHtml}</div>`;
+            };
+
+            // Template styles (duplicated from React for client-side rendering)
+            function getTemplateStyles(templateName) {
+                const sectionTitleClasses = "text-lg font-semibold border-b-2 border-gray-300 pb-1 mb-2";
+                const templateStyles = {
+                    modern: {
+                        container: "font-inter bg-white shadow-lg rounded-lg overflow-hidden p-8 max-w-a4 mx-auto my-4 text-gray-800",
+                        header: "text-center mb-6 p-4 bg-blue-600 text-white rounded-t-lg",
+                        name: "text-4xl font-bold mb-1",
+                        title: "text-xl font-medium opacity-90",
+                        contactInfo: "flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm mt-3",
+                        contactItem: "flex items-center",
+                        section: "mb-6",
+                        sectionTitle: `${sectionTitleClasses} text-blue-700 border-blue-300`,
+                        subheading: "font-semibold text-md mb-1",
+                        subheading2: "font-medium text-sm text-gray-600",
+                        descriptionList: "list-disc pl-5",
+                        descriptionItem: "mb-1",
+                        skillTag: "inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-2 mb-2",
+                    },
+                    classic: {
+                        container: "font-serif bg-white shadow-lg rounded-lg overflow-hidden p-8 max-w-a4 mx-auto my-4 text-gray-800",
+                        header: "text-center mb-6 pb-2 border-b-2 border-gray-400",
+                        name: "text-3xl font-bold mb-1",
+                        title: "text-lg font-normal text-gray-700",
+                        contactInfo: "flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm mt-2",
+                        contactItem: "flex items-center",
+                        section: "mb-5",
+                        sectionTitle: `${sectionTitleClasses} text-gray-700 border-gray-400`,
+                        subheading: "font-bold text-md mb-1",
+                        subheading2: "font-normal text-sm text-gray-600 italic",
+                        descriptionList: "list-disc pl-5",
+                        descriptionItem: "mb-1",
+                        skillTag: "inline-block bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded mr-2 mb-2",
+                    },
+                    minimal: {
+                        container: "font-sans bg-white shadow-lg rounded-lg overflow-hidden p-8 max-w-a4 mx-auto my-4 text-gray-800",
+                        header: "mb-6 pb-2 border-b border-gray-300",
+                        name: "text-3xl font-bold mb-1",
+                        title: "text-lg text-gray-600",
+                        contactInfo: "flex flex-wrap gap-x-4 gap-y-1 text-sm mt-2",
+                        contactItem: "flex items-center",
+                        section: "mb-5",
+                        sectionTitle: `${sectionTitleClasses} text-gray-800 border-gray-200`,
+                        subheading: "font-semibold text-md mb-1",
+                        subheading2: "font-normal text-sm text-gray-500",
+                        descriptionList: "list-none pl-0",
+                        descriptionItem: "mb-1 before:content-['•_'] before:text-gray-400 before:mr-1",
+                        skillTag: "inline-block text-sm mr-3 mb-1",
+                    }
+                };
+                return templateStyles[templateName];
+            }
+
+            // Template selection handler
+            templateBtns.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    templateBtns.forEach(b => {
+                        b.classList.remove('bg-purple-600', 'text-white', 'shadow-lg');
+                        b.classList.add('bg-gray-200', 'text-gray-800', 'hover:bg-gray-300');
+                    });
+                    this.classList.add('bg-purple-600', 'text-white', 'shadow-lg');
+                    this.classList.remove('bg-gray-200', 'text-gray-800', 'hover:bg-gray-300');
+                    currentTemplate = this.dataset.template;
+                    updatePreview(); // Update preview with new template
+                });
+            });
+
+            // Section navigation handler
+            sectionNavBtns.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const targetSectionId = this.dataset.section + '-section';
+
+                    // Hide all sections
+                    resumeFormSections.forEach(section => {
+                        section.classList.add('hidden');
+                    });
+                    // Show target section
+                    document.getElementById(targetSectionId).classList.remove('hidden');
+
+                    // Update active button style
+                    sectionNavBtns.forEach(b => {
+                        b.classList.remove('bg-indigo-600', 'text-white', 'shadow-lg');
+                        b.classList.add('bg-gray-200', 'text-gray-800', 'hover:bg-gray-300');
+                    });
+                    this.classList.add('bg-indigo-600', 'text-white', 'shadow-lg');
+                    this.classList.remove('bg-gray-200', 'text-gray-800', 'hover:bg-gray-300');
+                });
+            });
+
+            // Initial preview update
+            updatePreview();
+
+            // PDF Export Logic
+            exportPdfBtn.addEventListener('click', async function () {
+                const previewElement = resumePreview.querySelector('.max-w-a4'); // Get the inner container
+                if (!previewElement) {
+                    console.error("Preview element not found for PDF export.");
+                    return;
+                }
+
+                // Temporarily apply print-specific styles for consistent PDF output
+                const originalPadding = previewElement.style.padding;
+                const originalMargin = previewElement.style.margin;
+                const originalWidth = previewElement.style.width;
+                const originalBoxSizing = previewElement.style.boxSizing;
+
+                previewElement.style.width = '210mm'; // A4 width
+                previewElement.style.padding = '10mm'; // Add some padding for margins
+                previewElement.style.margin = '0 auto'; // Center it
+                previewElement.style.boxSizing = 'border-box'; // Ensure padding is included in width
+
+                // Small delay to allow re-render with new styles before capturing
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                try {
+                    const canvas = await html2canvas(previewElement, {
+                        scale: 2, // Increase scale for better resolution
+                        useCORS: true,
+                        logging: true,
+                        allowTaint: true,
+                    });
+
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+
+                    const imgWidth = 210; // A4 width in mm
+                    const pageHeight = 297; // A4 height in mm
+                    const imgHeight = canvas.height * imgWidth / canvas.width;
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+
+                    while (heightLeft >= 0) {
+                        position = heightLeft - imgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+
+                    pdf.save('resume.pdf');
+                } catch (error) {
+                    console.error("Error generating PDF:", error);
+                } finally {
+                    // Restore original styles
+                    previewElement.style.padding = originalPadding;
+                    previewElement.style.margin = originalMargin;
+                    previewElement.style.width = originalWidth;
+                    previewElement.style.boxSizing = originalBoxSizing;
+                }
+            });
+
+            // Dynamic add/remove for Education, Experience, Projects
+            let educationIndex = @Model.Education.Count;
+            document.getElementById('addEducationBtn').addEventListener('click', function () {
+                const container = document.getElementById('education-items-container');
+                const newEduItem = document.createElement('div');
+                newEduItem.className = 'mb-4 p-4 border border-gray-200 rounded-md bg-gray-50 education-item';
+                newEduItem.innerHTML = `
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Degree:</label>
+                    <input type="text" name="Education[${educationIndex}].Degree" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" onkeyup="updatePreview()" />
+                    <label class="block text-gray-700 text-sm font-bold mb-2">University:</label>
+                    <input type="text" name="Education[${educationIndex}].University" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" onkeyup="updatePreview()" />
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Year:</label>
+                    <input type="text" name="Education[${educationIndex}].Year" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" onkeyup="updatePreview()" />
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Details:</label>
+                    <textarea name="Education[${educationIndex}].Details" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 h-20" onkeyup="updatePreview()"></textarea>
+                    <button type="button" class="remove-item-btn ml-2 px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200" data-section="education">Remove Education</button>
+                `;
+                container.appendChild(newEduItem);
+                educationIndex++;
+                attachRemoveListeners(); // Re-attach listeners for new buttons
+                updatePreview();
+            });
+
+            let experienceIndex = @Model.Experience.Count;
+            document.getElementById('addExperienceBtn').addEventListener('click', function () {
+                const container = document.getElementById('experience-items-container');
+                const newExpItem = document.createElement('div');
+                newExpItem.className = 'mb-4 p-4 border border-gray-200 rounded-md bg-gray-50 experience-item';
+                newExpItem.innerHTML = `
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Title:</label>
+                    <input type="text" name="Experience[${experienceIndex}].Title" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" onkeyup="updatePreview()" />
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Company:</label>
+                    <input type="text" name="Experience[${experienceIndex}].Company" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" onkeyup="updatePreview()" />
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Years:</label>
+                    <input type="text" name="Experience[${experienceIndex}].Years" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" onkeyup="updatePreview()" />
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Description:</label>
+                    <div class="description-lines-container">
+                        <div class="flex items-center mb-2">
+                            <textarea name="Experience[${experienceIndex}].Description[0]" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 h-16 flex-grow" onkeyup="updatePreview()"></textarea>
+                            <button type="button" class="remove-desc-line-btn ml-2 px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200">-</button>
+                        </div>
+                    </div>
+                    <button type="button" class="add-desc-line-btn px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors duration-200 text-sm" data-exp-index="${experienceIndex}">Add Line</button>
+                    <button type="button" class="remove-item-btn ml-2 px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200 mt-2" data-section="experience">Remove Experience</button>
+                `;
+                container.appendChild(newExpItem);
+                experienceIndex++;
+                attachRemoveListeners();
+                attachDescriptionLineListeners();
+                updatePreview();
+            });
+
+            let projectIndex = @Model.Projects.Count;
+            document.getElementById('addProjectBtn').addEventListener('click', function () {
+                const container = document.getElementById('projects-items-container');
+                const newProjItem = document.createElement('div');
+                newProjItem.className = 'mb-4 p-4 border border-gray-200 rounded-md bg-gray-50 project-item';
+                newProjItem.innerHTML = `
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Project Name:</label>
+                    <input type="text" name="Projects[${projectIndex}].Name" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" onkeyup="updatePreview()" />
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Description:</label>
+                    <textarea name="Projects[${projectIndex}].Description" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 h-20" onkeyup="updatePreview()"></textarea>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Link:</label>
+                    <input type="url" name="Projects[${projectIndex}].Link" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2" onkeyup="updatePreview()" />
+                    <button type="button" class="remove-item-btn ml-2 px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200" data-section="projects">Remove Project</button>
+                `;
+                container.appendChild(newProjItem);
+                projectIndex++;
+                attachRemoveListeners();
+                updatePreview();
+            });
+
+            function attachRemoveListeners() {
+                document.querySelectorAll('.remove-item-btn').forEach(button => {
+                    button.onclick = function () {
+                        this.closest('.education-item, .experience-item, .project-item').remove();
+                        updatePreview();
+                        // Re-index form fields (important for MVC model binding)
+                        reindexFormFields();
+                    };
+                });
+            }
+
+            function attachDescriptionLineListeners() {
+                document.querySelectorAll('.add-desc-line-btn').forEach(button => {
+                    button.onclick = function () {
+                        const expItem = this.closest('.experience-item');
+                        const descContainer = expItem.querySelector('.description-lines-container');
+                        const currentDescLines = descContainer.querySelectorAll('textarea').length;
+                        const expIndex = parseInt(this.dataset.expIndex);
+
+                        const newDescLine = document.createElement('div');
+                        newDescLine.className = 'flex items-center mb-2';
+                        newDescLine.innerHTML = `
+                            <textarea name="Experience[${expIndex}].Description[${currentDescLines}]" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 h-16 flex-grow" onkeyup="updatePreview()"></textarea>
+                            <button type="button" class="remove-desc-line-btn ml-2 px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200">-</button>
+                        `;
+                        descContainer.appendChild(newDescLine);
+                        attachDescriptionLineListeners(); // Re-attach for new remove button
+                        updatePreview();
+                    };
+                });
+
+                document.querySelectorAll('.remove-desc-line-btn').forEach(button => {
+                    button.onclick = function () {
+                        this.closest('.flex.items-center.mb-2').remove();
+                        updatePreview();
+                        reindexDescriptionLines(); // Re-index description lines
+                    };
+                });
+            }
+
+            // Function to re-index form fields after adding/removing items
+            // Crucial for ASP.NET MVC model binding to correctly parse array data
+            function reindexFormFields() {
+                ['education', 'experience', 'projects'].forEach(section => {
+                    const items = document.querySelectorAll(`.${section}-item`);
+                    items.forEach((item, index) => {
+                        item.querySelectorAll('[name^="' + section + '['"]').forEach(input => {
+                            const oldName = input.name;
+                            const newName = oldName.replace(/\[\d+\]/, '[' + index + ']');
+                            input.name = newName;
+                            // Update id as well if present, though not strictly necessary for MVC binding
+                            if (input.id) {
+                                input.id = input.id.replace(/_\d+__/, '_' + index + '__');
+                            }
+                        });
+                        // Re-index description lines within experience items
+                        if (section === 'experience') {
+                            const descLines = item.querySelectorAll('.description-lines-container textarea');
+                            descLines.forEach((textarea, descIndex) => {
+                                textarea.name = `Experience[${index}].Description[${descIndex}]`;
+                            });
+                            // Update data-exp-index for add description line buttons
+                            const addDescBtn = item.querySelector('.add-desc-line-btn');
+                            if (addDescBtn) {
+                                addDescBtn.dataset.expIndex = index;
+                            }
+                        });
+                    });
+                });
+            }
+
+            // Function to re-index description lines within an experience item
+            function reindexDescriptionLines() {
+                document.querySelectorAll('.experience-item').forEach((expItem, expIndex) => {
+                    const descLines = expItem.querySelectorAll('.description-lines-container textarea');
+                    descLines.forEach((textarea, descIndex) => {
+                        textarea.name = `Experience[${expIndex}].Description[${descIndex}]`;
+                    });
+                });
+            }
+
+            // Attach listeners initially for existing items
+            attachRemoveListeners();
+            attachDescriptionLineListeners();
+
+            // Attach input event listeners to all form fields for live preview
+            resumeForm.addEventListener('input', updatePreview);
+        });
+    </script>
+</body>
+</html>
+
+<!-- Partial Views for dynamic items -->
+<!-- _EducationItem.cshtml -->
+
+
+
+<!-- _ExperienceItem.cshtml -->
